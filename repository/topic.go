@@ -3,7 +3,6 @@ package repository
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -38,20 +37,23 @@ func NewTopicDaoInstance() *TopicDao {
 func (*TopicDao) QueryTopicById(id int64) *Topic {
 	topicMutex.RLock()
 	defer topicMutex.RUnlock()
-	fmt.Println(id, *topicIndexMap[id])
 	return topicIndexMap[id]
 }
 
-func (*TopicDao) InsertNewTopic(filePath string, topic *Topic) error {
+func (*TopicDao) InsertNewTopic(filePath, title, content string) (*Topic, error) {
 	topicMutex.Lock()
 	defer topicMutex.Unlock()
-	topic.ID = getNextTopicId()
-	topic.CreateTime = time.Now().Unix()
+	topic := &Topic{
+		ID:         getNextTopicId(),
+		Title:      title,
+		Content:    content,
+		CreateTime: time.Now().Unix(),
+	}
 	topicIndexMap[topic.ID] = topic
 	if err := WriteTopic(filePath, topic); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return topic, nil
 }
 
 func getNextTopicId() int64 {

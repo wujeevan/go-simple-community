@@ -41,15 +41,19 @@ func (*PostDao) QueryPostByParentId(parentId int64) []*Post {
 	return postIndexMap[parentId]
 }
 
-func (*PostDao) InsertPostByParentId(filePath string, parentId int64, post *Post) error {
+func (*PostDao) InsertPostByParentId(filePath string, parentId int64, content string) (*Post, error) {
 	postMutex.Lock()
 	defer postMutex.Unlock()
 	nextPostId, err := getNextPostId(parentId)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	post.ID = nextPostId
-	post.CreateTime = time.Now().Unix()
+	post := &Post{
+		ID:         nextPostId,
+		ParentID:   parentId,
+		Content:    content,
+		CreateTime: time.Now().Unix(),
+	}
 	if nextPostId == 1 {
 		postIndexMap[parentId] = []*Post{post}
 	} else {
@@ -58,11 +62,14 @@ func (*PostDao) InsertPostByParentId(filePath string, parentId int64, post *Post
 		postIndexMap[parentId] = posts
 	}
 	WritePost(filePath, parentId, post)
-	return nil
+	return post, nil
 }
 
 func getNextPostId(parentID int64) (int64, error) {
-	if _, ok := topicIndexMap[parentID]; !ok {
+	topicMutex.RLock()
+	_, ok := topicIndexMap[parentID]
+	topicMutex.RUnlock()
+	if !ok {
 		return 0, errors.New("must be posted in the existing topic")
 	}
 	posts, ok := postIndexMap[parentID]
